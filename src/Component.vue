@@ -2,12 +2,7 @@
 
 import { defineComponent, ref } from 'vue';
 import { Previewer } from 'pagedjs';
-
-
-// Third-parties
-
-export const pagedjs = new Previewer();
-
+import { BaseError } from '@/errors';
 
 export default defineComponent({
   name: 'VuePaged',
@@ -20,36 +15,55 @@ export default defineComponent({
   },
 
   methods: {
-    updHtml(): void {
-      this.displayEl.innerHTML = '';
+    async updHtml(): Promise<void> {
 
-      pagedjs?.preview(
-          this.contentEl.innerHTML,
+      // Doing some checks
+
+      if (!this.displayEl || !this.contentEl)
+        throw new BaseError('Vue Paged: Unable to render content, the component is not ready');
+
+
+      // Clearing the previous render
+
+      this.remHtml();
+
+
+      // Updating the HTML
+
+      await new Previewer()?.preview(
+          this.contentEl?.innerHTML,
           [],
           this.displayEl,
       );
+    },
+    remHtml(): void {
+      this.displayEl.innerHTML = '';
     },
   },
 
   watch: {
     displayEl: {
-      handler(val: string|null): void {
+      handler(val: any): void {
+
+        // Doing some checks
+
         if (!val || !this.contentEl) return;
 
+
         // TODO: kr: Costyl to ensure all the previous tasks are done
-        setTimeout(this.updHtml.bind(this), 0);
+
+        const upd = () => {
+          this.updHtml().then(() => {
+            this.$emit('compiled');
+          }).catch(console.error);
+        };
+
+        this.$emit('compilation:started');
+
+        setTimeout(upd, 0);
       },
       immediate: true
     },
-    // contentEl: {
-    //   handler(val: string|null): void {
-    //     if (!val || !this.displayEl) return;
-    //
-    //     // TODO: kr: Costyl to ensure all the previous tasks are done
-    //     setTimeout(this.updHtml.bind(this), 0);
-    //   },
-    //   immediate: true
-    // },
   },
 });
 
@@ -60,7 +74,9 @@ export default defineComponent({
     <div class="vue_paged_inner" ref="displayEl" />
 
     <div class="vue_paged_content hidden" ref="contentEl">
-      <slot />
+      <slot>
+        <span />
+      </slot>
     </div>
   </div>
 </template>
